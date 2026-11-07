@@ -1,4 +1,4 @@
-import React,{useEffect,useRef} from 'react';
+import React,{lazy,Suspense,useEffect,useRef} from 'react';
 import {createRoot} from 'react-dom/client';
 import {AlertCircle,ArrowRight,ArrowUpRight,Check,Info,Link2,Loader2,X} from 'lucide-react';
 import useStickerStudio from './useStickerStudio';
@@ -6,6 +6,7 @@ import useBulkMedia from './useBulkMedia';
 import {AccentMarks,BrandMark,Mascot,Wave} from './Artwork';
 import MediaResults from './MediaResults';
 import ResultCard from './ResultCard';
+import WhatsAppQueue from './WhatsAppQueue';
 import './styles.css';
 
 function App(){
@@ -26,7 +27,7 @@ function App(){
  function example(){run({}, {example:true});}
 
  return <div className={`studio-app view-${view}`}>
-  <a className="skip-link" href="#converter">Skip to converter</a>
+  <a className="skip-link" href="#converter" onClick={event=>{event.preventDefault();if(view==='landing')inputRef.current?.focus();else headingRef.current?.focus();}}>Skip to converter</a>
   <header className="site-header content-width">
    <a className="brand" href="/" onClick={event=>{event.preventDefault();reset();}} aria-label="Sticker Studio home"><BrandMark/><span>Sticker<br/>Studio<span className="brand-period">.</span></span></a>
    <nav aria-label="Main navigation">
@@ -54,6 +55,7 @@ function App(){
     <Mascot pose={view==='landing'?'landing':view==='ready'?'ready':'gallery'}/>
    </section>
 
+   <WhatsAppQueue bulk={bulk}/>
    {view==='landing'&&<>
     <section className="entry-area content-width" aria-label="Find a TikTok sticker">
      <form className={`link-form ${error?'has-error':''}`} onSubmit={submit} noValidate>
@@ -86,11 +88,13 @@ function App(){
 
   <dialog ref={helpRef} className="help-dialog" onClick={event=>{if(event.target===event.currentTarget)event.currentTarget.close();}}>
    <div className="dialog-head"><h2>Paste. Preview. Keep.</h2><button className="icon-button" aria-label="Close instructions" onClick={()=>helpRef.current.close()}><X size={23}/></button></div>
-   <ol><li><strong>Start with a TikTok link.</strong><p>A comment link finds that exact reaction. A video link opens its stickers and photos in separate tabs.</p></li><li><strong>Find the one you want.</strong><p>Check the preview, commenter and text. Some comments may be hidden by TikTok; incomplete scans are labelled.</p></li><li><strong>Make it yours.</strong><p>Download a sticker or share the file. Original files are in File details; photos keep their original resolution. Sharing doesn’t import directly to WhatsApp.</p></li></ol>
+   <ol><li><strong>Start with a TikTok link.</strong><p>A comment link finds that exact reaction. A video link opens its stickers and photos in separate tabs.</p></li><li><strong>Find the one you want.</strong><p>Check the preview, commenter and text. Some comments may be hidden by TikTok; incomplete scans are labelled.</p></li><li><strong>Make it yours.</strong><p>Send a sticker straight to your WhatsApp number, download it, or share the file. Original files are in File details; photos keep their original resolution.</p></li></ol>
    <button className="button primary" onClick={()=>{helpRef.current.close();if(view!=='landing')reset();else inputRef.current?.focus();}}>Try a link<ArrowRight size={21}/></button>
   </dialog>
   <div className="toast-region" aria-live="polite" aria-atomic="true">{toast&&<div className={`toast ${toast.type}`} role={toast.type==='error'?'alert':'status'}>{toast.type==='error'?<AlertCircle size={20}/>:toast.type==='info'?<Info size={20}/>:<Check size={20}/>}<span>{toast.message}</span><button className="icon-button" aria-label="Dismiss notification" onClick={()=>setToast(null)}><X size={17}/></button></div>}</div>
  </div>;
 }
 
-createRoot(document.getElementById('root')).render(<App/>);
+const AdminApp=lazy(()=>import('./AdminApp'));
+const isAdmin=/^\/admin(?:\/|$)/.test(window.location.pathname);
+createRoot(document.getElementById('root')).render(isAdmin?<Suspense fallback={<p role="status" style={{padding:32}}>Loading admin…</p>}><AdminApp/></Suspense>:<App/>);
