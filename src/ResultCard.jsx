@@ -1,7 +1,8 @@
-import React from 'react';
+import React,{lazy,Suspense} from 'react';
 import {ArrowLeft,ArrowUpRight,CheckCheck,Download,Loader2,Pause,Play,Upload} from 'lucide-react';
 import {API} from './api';
 import {commentLink} from './MediaResults';
+const WhatsAppSend=lazy(()=>import('./WhatsAppSend'));
 
 const formatBytes=value=>value>=1024?`${(value/1024).toFixed(value>10240?0:1)} KB`:`${value} B`;
 
@@ -23,6 +24,7 @@ export default function ResultCard({studio}){
      {result.source?.text&&<p className="comment-bubble">{result.source.text}</p>}
      {result.sourceMode==='saved_example'&&<p className="example-note">An animated TikTok sticker, saved for you to try.</p>}
     </div>
+    {!isPhoto&&result.stickerFile&&<Suspense fallback={<p className="whatsapp-unavailable" role="status">Loading WhatsApp delivery…</p>}><WhatsAppSend stickerFile={result.stickerFile}/></Suspense>}
     <div className="result-actions">
      <button className="button primary" aria-label={originalOnly?'Download original':'Download sticker'} onClick={()=>save(originalOnly)} disabled={downloadBusy}>{downloadBusy?<Loader2 className="spin" size={25}/>:<Download size={28}/>}Download</button>
      <button className="button secondary" onClick={share} disabled={sharing}>{sharing?<Loader2 className="spin" size={24}/>:<Upload size={26}/>}Share</button>

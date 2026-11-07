@@ -1,5 +1,6 @@
 import {useEffect,useRef,useState} from 'react';
 import {request,waitForJob,getSticker} from './api';
+import {parseSourceHash,sourceHash} from './source-url';
 
 function downloadBlob(path,blob){
  const address=URL.createObjectURL(blob);
@@ -21,6 +22,23 @@ export default function useStickerStudio(){
  const [playing,setPlaying]=useState(true);
  const [still,setStill]=useState(null);
  const inputRef=useRef(null),controller=useRef(null),toastTimer=useRef(null);
+ const currentHash=useRef(null);
+
+ function updateSource(source,{replace=false}={}){
+  const hash=sourceHash(source);currentHash.current=hash;
+  if(window.location.hash===hash)return;
+  window.history[replace?'replaceState':'pushState'](null,'',window.location.pathname+window.location.search+hash);
+ }
+ useEffect(()=>{
+  function restore(){
+   const hash=window.location.hash;if(currentHash.current===hash)return;currentHash.current=hash;
+   const source=parseSourceHash(hash);
+   if(source){setUrl(source.url);run(source,{restore:true});}
+   else if(!hash){controller.current?.abort();setBusy(false);setResult(null);setDiscovery(null);setError('');setUrl('');}
+  }
+  restore();window.addEventListener('popstate',restore);window.addEventListener('hashchange',restore);
+  return()=>{window.removeEventListener('popstate',restore);window.removeEventListener('hashchange',restore);};
+ },[]);
 
  function notify(message,type='success'){
   setToast({message,type});clearTimeout(toastTimer.current);
@@ -40,8 +58,14 @@ export default function useStickerStudio(){
   return()=>{cancelled=true};
  },[result]);
 
- async function run(payload,{example=false,keepGallery=false}={}){
-  if(busy)return;
+ async function run(payload,{example=false,keepGallery=false,restore=false}={}){
+  if(busy&&!restore)return;
+  if(example)updateSource(null);
+  else{
+   const selected=keepGallery&&discovery?.candidates.find(candidate=>candidate.id===payload.candidateId);
+   const source=selected?{url:`https://www.tiktok.com/@/video/${selected.videoId}?share_comment_id=${selected.commentId}`}:{url:payload.url,...(payload.scope==='video'?{scope:'video'}:{})};
+   updateSource(source,{replace:restore});setUrl(payload.url);
+  }
   setError('');setResult(null);if(!keepGallery)setDiscovery(null);
   setBusy(true);setStage(example?'Opening saved example':'Reading TikTok comments');
   controller.current?.abort();const ctl=new AbortController();controller.current=ctl;
@@ -89,9 +113,10 @@ export default function useStickerStudio(){
   finally{setSharing(false)}
  }
  function reset(){
+  updateSource(null);
   controller.current?.abort();setBusy(false);setResult(null);setDiscovery(null);setError('');setUrl('');setToast(null);
   window.scrollTo({top:0});requestAnimationFrame(()=>inputRef.current?.focus({preventScroll:true}));
  }
- function backToResults(){setResult(null);setError('');setToast(null);}
+ function backToResults(){if(discovery)updateSource({url:discovery.inputUrl,...(discovery.scope==='video'?{scope:'video'}:{})});setResult(null);setError('');setToast(null);}
  return {url,setUrl,busy,stage,result,discovery,activeTab,setActiveTab,error,setError,toast,setToast,sharing,downloadBusy,playing,setPlaying,still,inputRef,run,submit,paste,save,share,reset,backToResults,notify};
 }
